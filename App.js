@@ -9,7 +9,11 @@ import { createDrawerNavigator } from '@react-navigation/drawer';
 import { Image } from 'expo-image';
 import { db } from './firebase';
 import { collection, addDoc, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GEMINI_API_KEY } from '@env';
+
 const Drawer = createDrawerNavigator();
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 function HomeScreen() {
   return (
@@ -33,6 +37,39 @@ function MapScreen() {
   );
 }
 
+async function moderateContent(content) {
+  try {
+    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    
+    const prompt = `
+      Please analyze this content for appropriateness in a community forum about the LA28 Olympics. 
+      Consider if it contains:
+      1. Inappropriate language
+      2. Harmful content
+      3. Spam
+      
+      Content to analyze: "${content}"
+      
+      Respond with only "APPROVED" or "REJECTED" followed by a brief reason.
+    `;
+
+    const result = await model.generateContent(prompt);
+    const response = result.response.text();
+    
+    return {
+      isApproved: response.includes("APPROVED"),
+      reason: response.split("\n")[1] || "No reason provided"
+    };
+  } catch (error) {
+    console.error("Content moderation error:", error);
+    // In case of API error, we could either:
+    // 1. Reject the content to be safe
+    // 2. Allow it through with a warning
+    // Here we'll allow it through but log the error
+    return { isApproved: true, reason: "Moderation check failed" };
+  }
+}
+
 // Page 3 Component
 function ForumScreen() {
   const [userInfo, setUserInfo] = useState({ firstName: '', lastName: '', userType: '' });
@@ -52,10 +89,17 @@ function ForumScreen() {
       alert('Enter all fields before submitting');
     }
   };
+  
 
   const handleAddPost = async () => {
     if (userInfo.userType && post) {
       try {
+        const moderation = await moderateContent(post);
+        if (!moderation.isApproved) {
+          alert(`Your post was not approved. Reason: ${moderation.reason}`);
+          return;
+        }
+
         await addDoc(collection(db, 'forumPosts'), {
           userType: userInfo.userType,
           firstName: userInfo.firstName,
@@ -94,6 +138,12 @@ function ForumScreen() {
     const replyText = replies[postId];
     if (replyText) {
       try {
+        const moderation = await moderateContent(replyText);
+        if (!moderation.isApproved) {
+          alert(`Your reply was not approved. Reason: ${moderation.reason}`);
+          return;
+        }
+
         // Fetch the current post
         const postRef = doc(db, 'forumPosts', postId);
         const postSnapshot = await getDoc(postRef);
@@ -167,29 +217,32 @@ function ForumScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.headerContainer}>
-        <Text style={styles.headerTitle}>LA28 Community Forum🏆</Text>
-        <Text style={styles.headerText}>
-        Share your unique perspective, ask questions, and contribute ideas about everything from getting around the city to enjoying events.{"\n"}
-        Join the discussion!
-        </Text>
-      </View>
-      {/* Post Input */}
-      <View style={styles.postInputContainer}>
-        <TouchableOpacity style={styles.submitButton} onPress={handleAddPost}>
-          <Text style={styles.submitButtonText}>Submit</Text>
-        </TouchableOpacity>
-        <TextInput
-          style={styles.input}
-          placeholder="Enter your question..."
-          value={post}
-          onChangeText={(text) => setPost(text)}
-        />
-      </View>
-
-      {/* Display Posts */}
+    <View style={styles.containerOuter}>
       <FlatList
+        style={styles.scrollContainer}
+        ListHeaderComponent={() => (
+          <>
+            <View style={styles.headerContainer}>
+              <Text style={styles.headerTitle}>LA28 Community Forum🏆</Text>
+              <Text style={styles.headerText}>
+                Share your unique perspective, ask questions, and contribute ideas about everything from getting around the city to enjoying events.{"\n"}
+                Join the discussion!{"\n"}
+              </Text>
+              <Text style={styles.warningText}>⚠️AI Monitored</Text>
+            </View>
+            <View style={styles.postInputContainer}>
+              <TouchableOpacity style={styles.submitButton} onPress={handleAddPost}>
+                <Text style={styles.submitButtonText}>Submit</Text>
+              </TouchableOpacity>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your question..."
+                value={post}
+                onChangeText={(text) => setPost(text)}
+              />
+            </View>
+          </>
+        )}
         data={posts}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
@@ -267,7 +320,7 @@ function ForumScreen() {
               >
                 <Text style={styles.replyButtonText}>Reply</Text>
               </TouchableOpacity>
-            </View>
+            </View>            
           </View>
         )}
       />
@@ -293,6 +346,18 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3fbfb',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  warningText: {
+    color: '#FFA500'
+  },
+  containerOuter: {
+    flex: 1,
+    backgroundColor: '#f3fbfb',
+    width: '100%'
+  },
+  scrollContainer: {
+    flex: 1,
+    width: '100%'
   },
   date: {
     color: "#808080",
@@ -495,6 +560,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    alignSelf: 'center'
   },
   headerTitle: {
     fontSize: 20,

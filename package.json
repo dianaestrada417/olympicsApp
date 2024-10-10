@@ -9,6 +9,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
     "@react-native-community/masked-view": "^0.1.11",
     "@react-native-community/slider": "4.5.2",
     "@react-navigation/drawer": "^6.7.2",
