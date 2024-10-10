@@ -12,16 +12,30 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "AIzaSyCLRRG5I15vJA2WMAFSvBQs8vSkxczgXkU"
+      },
+      "bundleIdentifier": "com.dianaestrada417.olympicsApp"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
+      },
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCLRRG5I15vJA2WMAFSvBQs8vSkxczgXkU"
+        }
       }
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "b4ff73bc-4f6a-4cac-ad7a-1414bf514589"
+      }
     }
   }
 }
