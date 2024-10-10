@@ -24,7 +24,6 @@ function HomeScreen() {
   );
 }
 
-// AIzaSyBcIKf-4aXJ9o5D2sXmEVTbztd3sA4A6sg
 // Page 2 Component
 function MapScreen() {
   return (
