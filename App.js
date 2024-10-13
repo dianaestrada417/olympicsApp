@@ -1,6 +1,6 @@
-import React, {useState, useEffect, useRef} from 'react';
+import React, {useState, useEffect, useRef, useCallback} from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { ScrollView, StyleSheet, Text, View, Dimensions, ActivityIndicator, TextInput, Button, FlatList, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, Dimensions, ActivityIndicator, TextInput, Button, FlatList, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView} from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import Slider from '@react-native-community/slider';
 import * as Location from 'expo-location';
@@ -8,7 +8,14 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { Image } from 'expo-image';
 import { db } from './firebase';
-import { collection, addDoc, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  addDoc,
+  getDocs,
+  doc,
+  getDoc,
+  updateDoc,
+} from 'firebase/firestore';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GEMINI_API_KEY } from '@env';
 
@@ -175,8 +182,8 @@ function MapScreen() {
 
 async function moderateContent(content) {
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-    
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+
     const prompt = `
       Please analyze this content for appropriateness in a community forum about the LA28 Olympics. 
       Consider if it contains:
@@ -187,35 +194,73 @@ async function moderateContent(content) {
       Content to analyze: "${content}"
       
       Respond with only "APPROVED" or "REJECTED" followed by a brief reason.
+      This should be the format of the response: "REJECTED - Inappropriate language"
     `;
 
     const result = await model.generateContent(prompt);
-    const response = result.response.text();
-    
+    const responseText = result.response.text();
+    console.log("reSPonse: ", responseText)
+
+    const [status, ...reasonParts] = responseText.split("\n");
+    const reason = reasonParts.join(" ").trim() || "No reason provided";
+
     return {
-      isApproved: response.includes("APPROVED"),
-      reason: response.split("\n")[1] || "No reason provided"
+      isApproved: status.includes("APPROVED"),
+      reason: reason
+      // isApproved: response.includes('APPROVED'),
+      // reason: response.split('\n')[1] || 'No reason provided',
     };
   } catch (error) {
-    console.error("Content moderation error:", error);
-    // In case of API error, we could either:
-    // 1. Reject the content to be safe
-    // 2. Allow it through with a warning
-    // Here we'll allow it through but log the error
-    return { isApproved: true, reason: "Moderation check failed" };
+    console.error('Content moderation error:', error);
+    return { isApproved: true, reason: 'Moderation check failed' };
   }
 }
 
-// Page 3 Component
+// Separate Header Component
+const ForumHeader = React.memo(({ handleAddPost, post, setPost, inputRef, moderationReason }) => (
+  <>
+    <View style={styles.headerContainer}>
+      <Text style={styles.headerTitle}>LA28 Community Forum🏆</Text>
+      <Text style={styles.headerText}>
+        Share your unique perspective, ask questions, and contribute ideas about everything from getting around the city to enjoying events.{"\n"}
+        Join the discussion!{"\n"}
+      </Text>
+      <Text style={styles.warningText}>⚠️AI Monitored</Text>
+    </View>
+    <View style={styles.postInputContainer}>
+      <TouchableOpacity style={styles.submitButton} onPress={handleAddPost}>
+        <Text style={styles.submitButtonText}>Submit</Text>
+      </TouchableOpacity>
+      <TextInput
+        ref={inputRef}
+        style={styles.input}
+        placeholder="Enter your question..."
+        value={post}
+        onChangeText={setPost}
+        multiline={true}
+      />
+      {moderationReason ? (
+        <Text style={styles.moderationText}>{moderationReason}</Text>
+      ) : null}
+    </View>
+  </>
+));
+
 function ForumScreen() {
-  const [userInfo, setUserInfo] = useState({ firstName: '', lastName: '', userType: '' });
+  const [userInfo, setUserInfo] = useState({
+    firstName: '',
+    lastName: '',
+    userType: '',
+  });
   const [post, setPost] = useState('');
   const [posts, setPosts] = useState([]);
   const [replies, setReplies] = useState({});
   const [isUserInfoSubmitted, setIsUserInfoSubmitted] = useState(false);
+  const inputRef = useRef();
+  const [moderationReason, setModerationReason] = useState('');
 
   const handleUserTypeSelection = (type) => {
-    setUserInfo({ ...userInfo, userType: type });
+    setUserInfo((prev) => ({ ...prev, userType: type }));
   };
 
   const handleUserInfoSubmit = () => {
@@ -225,14 +270,28 @@ function ForumScreen() {
       alert('Enter all fields before submitting');
     }
   };
-  
 
-  const handleAddPost = async () => {
+  const fetchPosts = useCallback(async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'forumPosts'));
+      const postsList = querySnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setPosts(postsList);
+    } catch (error) {
+      console.error('Error fetching posts: ', error);
+    }
+  }, []);
+
+  const handleAddPost = useCallback(async () => {
     if (userInfo.userType && post) {
       try {
         const moderation = await moderateContent(post);
         if (!moderation.isApproved) {
-          alert(`Your post was not approved. Reason: ${moderation.reason}`);
+          // alert(`Your post was not approved. Reason: ${moderation.reason}`);
+          setModerationReason(moderation.reason); // Set the moderation reason
+          setTimeout(() => setModerationReason(''), 5000); // Clear after 5 seconds
           return;
         }
 
@@ -250,137 +309,127 @@ function ForumScreen() {
         console.error('Error adding post: ', error);
       }
     }
-  };
+  }, [userInfo, post, fetchPosts]);
 
-  const fetchPosts = async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, 'forumPosts'));
-      const postsList = querySnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setPosts(postsList);
-    } catch (error) {
-      console.error('Error fetching posts: ', error);
-    }
-  };
+  const handleReplyChange = useCallback((postId, text) => {
+    setReplies((prevReplies) => ({ ...prevReplies, [postId]: text }));
+  }, []);
 
-  const handleReplyChange = (postId, text) => {
-    setReplies({ ...replies, [postId]: text }); // Track reply for specific post
-  };
+  const handleReplySubmit = useCallback(
+    async (postId) => {
+      const replyText = replies[postId];
+      if (replyText) {
+        try {
+          const moderation = await moderateContent(replyText);
+          if (!moderation.isApproved) {
+            alert(`Your reply was not approved. Reason: ${moderation.reason}`);
+            return;
+          }
 
-  const handleReplySubmit = async (postId) => {
-    // Handle reply submission logic
-    const replyText = replies[postId];
-    if (replyText) {
-      try {
-        const moderation = await moderateContent(replyText);
-        if (!moderation.isApproved) {
-          alert(`Your reply was not approved. Reason: ${moderation.reason}`);
-          return;
+          const postRef = doc(db, 'forumPosts', postId);
+          const postSnapshot = await getDoc(postRef);
+          const postData = postSnapshot.data();
+
+          const updatedReplies = [
+            ...(postData.replies || []),
+            {
+              reply: replyText,
+              firstName: userInfo.firstName,
+              lastName: userInfo.lastName,
+              userType: userInfo.userType,
+              createdAt: new Date(),
+            },
+          ];
+
+          await updateDoc(postRef, {
+            replies: updatedReplies,
+          });
+
+          setReplies((prevReplies) => ({ ...prevReplies, [postId]: '' }));
+          fetchPosts(); // Refresh posts after updating replies
+        } catch (error) {
+          console.error('Error submitting reply: ', error);
         }
-
-        // Fetch the current post
-        const postRef = doc(db, 'forumPosts', postId);
-        const postSnapshot = await getDoc(postRef);
-        const postData = postSnapshot.data();
-  
-        // Append the new reply
-        const updatedReplies = [...(postData.replies || []), 
-          { 
-            reply: replyText,
-            firstName: userInfo.firstName,
-            lastName: userInfo.lastName,
-            userType: userInfo.userType,
-            createdAt: new Date() 
-          }];
-  
-        // Update the post with the new replies
-        await updateDoc(postRef, {
-          replies: updatedReplies
-        });
-  
-        // Clear the reply input after submission
-        setReplies({ ...replies, [postId]: '' });
-        fetchPosts(); // Refresh posts after updating replies
-      } catch (error) {
-        console.error('Error submitting reply: ', error);
       }
-    }
-  };
+    },
+    [replies, userInfo, fetchPosts]
+  );
 
   useEffect(() => {
-    fetchPosts(); // Fetch posts when the component mounts
-  }, []);
+    fetchPosts();
+  }, [fetchPosts]);
 
   if (!isUserInfoSubmitted) {
     return (
       <View style={styles.container}>
         <View style={styles.signupContainer}>
-        <Text>Join the forum!</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="First Name"
-          value={userInfo.firstName}
-          onChangeText={(text) => setUserInfo({ ...userInfo, firstName: text })}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Last Name"
-          value={userInfo.lastName}
-          onChangeText={(text) => setUserInfo({ ...userInfo, lastName: text })}
-        />
-        <View style={styles.userTypeContainer}>
+          <Text>Join the forum!</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="First Name"
+            value={userInfo.firstName}
+            onChangeText={(text) =>
+              setUserInfo((prev) => ({ ...prev, firstName: text }))
+            }
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Last Name"
+            value={userInfo.lastName}
+            onChangeText={(text) =>
+              setUserInfo((prev) => ({ ...prev, lastName: text }))
+            }
+          />
+          <View style={styles.userTypeContainer}>
+            <TouchableOpacity
+              style={[
+                styles.userTypeButton,
+                userInfo.userType === 'New to LA' && styles.selectedButton,
+              ]}
+              onPress={() => handleUserTypeSelection('New to LA')}
+            >
+              <Text style={styles.buttonText}>New to LA</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.userTypeButton,
+                userInfo.userType === 'LA Native' && styles.selectedButton,
+              ]}
+              onPress={() => handleUserTypeSelection('LA Native')}
+            >
+              <Text style={styles.buttonText}>LA Native</Text>
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity
-            style={[styles.userTypeButton, userInfo.userType === 'New to LA' && styles.selectedButton]}
-            onPress={() => handleUserTypeSelection('New to LA')}
+            style={styles.submitButton}
+            onPress={handleUserInfoSubmit}
           >
-            <Text style={styles.buttonText}>New to LA</Text>
+            <Text style={styles.submitButtonText}>Submit</Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.userTypeButton, userInfo.userType === 'LA Native' && styles.selectedButton]}
-            onPress={() => handleUserTypeSelection('LA Native')}
-          >
-            <Text style={styles.buttonText}>LA Native</Text>
-          </TouchableOpacity>
-        </View>
-        <TouchableOpacity style={styles.submitButton} onPress={handleUserInfoSubmit}>
-          <Text style={styles.submitButtonText}>Submit</Text>
-        </TouchableOpacity>
         </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.containerOuter}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={{ flex: 1 }}
+    >
       <FlatList
         style={styles.scrollContainer}
-        ListHeaderComponent={() => (
-          <>
-            <View style={styles.headerContainer}>
-              <Text style={styles.headerTitle}>LA28 Community Forum🏆</Text>
-              <Text style={styles.headerText}>
-                Share your unique perspective, ask questions, and contribute ideas about everything from getting around the city to enjoying events.{"\n"}
-                Join the discussion!{"\n"}
-              </Text>
-              <Text style={styles.warningText}>⚠️AI Monitored</Text>
-            </View>
-            <View style={styles.postInputContainer}>
-              <TouchableOpacity style={styles.submitButton} onPress={handleAddPost}>
-                <Text style={styles.submitButtonText}>Submit</Text>
-              </TouchableOpacity>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your question..."
-                value={post}
-                onChangeText={(text) => setPost(text)}
-              />
-            </View>
-          </>
-        )}
+        ListHeaderComponent={
+          <ForumHeader
+            handleAddPost={handleAddPost}
+            post={post}
+            setPost={setPost}
+            inputRef={inputRef}
+            moderationReason={moderationReason}
+          />
+        }
         data={posts}
         keyExtractor={(item) => item.id}
+        keyboardShouldPersistTaps="handled"
         renderItem={({ item }) => (
           <View style={styles.postContainer}>
             <View style={styles.userHeader}>
@@ -388,7 +437,9 @@ function ForumScreen() {
                 <Text
                   style={[
                     styles.userLabel,
-                    item.userType === 'New to LA' ? styles.newToLA : styles.laNative,
+                    item.userType === 'New to LA'
+                      ? styles.newToLA
+                      : styles.laNative,
                   ]}
                 >
                   {item.userType}
@@ -399,28 +450,31 @@ function ForumScreen() {
               </View>
               <View style={styles.postDateContainer}>
                 <Text style={styles.date}>
-                    {item.createdAt && item.createdAt.toDate().toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          })}
+                  {item.createdAt &&
+                    item.createdAt.toDate().toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                    })}
                 </Text>
               </View>
             </View>
             <Text style={styles.postText}>{item.post}</Text>
-      
+
             {/* Display Replies */}
             <FlatList
               data={item.replies}
               keyExtractor={(reply, index) => index.toString()}
               renderItem={({ item: replyItem }) => (
                 <View style={styles.replyContainer}>
-                 <View style={styles.replyHeader}>
+                  <View style={styles.replyHeader}>
                     <View style={styles.replyUserInfo}>
                       <Text
                         style={[
                           styles.replyUserLabel,
-                          replyItem.userType === 'New to LA' ? styles.newToLA : styles.laNative,
+                          replyItem.userType === 'New to LA'
+                            ? styles.newToLA
+                            : styles.laNative,
                         ]}
                       >
                         {replyItem.userType}
@@ -430,11 +484,15 @@ function ForumScreen() {
                       </Text>
                     </View>
                     <Text style={styles.replyDate}>
-                      {replyItem.createdAt && new Date(replyItem.createdAt.toDate()).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
+                      {replyItem.createdAt &&
+                        new Date(replyItem.createdAt.toDate()).toLocaleDateString(
+                          'en-US',
+                          {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          }
+                        )}
                     </Text>
                   </View>
                   <Text style={styles.replyText}>{replyItem.reply}</Text>
@@ -447,7 +505,7 @@ function ForumScreen() {
               <TextInput
                 style={styles.replyInput}
                 placeholder="Reply..."
-                value={replies[item.id] || ''} // Show the reply input specific to this post
+                value={replies[item.id] || ''}
                 onChangeText={(text) => handleReplyChange(item.id, text)}
               />
               <TouchableOpacity
@@ -456,11 +514,11 @@ function ForumScreen() {
               >
                 <Text style={styles.replyButtonText}>Reply</Text>
               </TouchableOpacity>
-            </View>            
+            </View>
           </View>
         )}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -484,25 +542,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   warningText: {
-    color: '#FFA500'
+    color: '#FFA500',
+  },
+  moderationText: {
+    color: 'red',
+    marginTop: 5,
+    textAlign: 'center',
   },
   containerOuter: {
     flex: 1,
     backgroundColor: '#f3fbfb',
-    width: '100%'
+    width: '100%',
   },
   scrollContainer: {
     flex: 1,
-    width: '100%'
+    width: '100%',
   },
   date: {
-    color: "#808080",
-    textAlign: 'right'
+    color: '#808080',
+    textAlign: 'right',
   },
   userHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   replyHeader: {
     flexDirection: 'row',
@@ -563,13 +626,12 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   replyInput: {
-    width: '70%',
+    flex: 1,
     padding: 10,
-    marginVertical: 10,
     borderWidth: 1,
     borderColor: '#ccc',
-    borderRadius: 5,  
-    justifyContent: 'right'
+    borderRadius: 5,
+    marginRight: 10,
   },
   userTypeContainer: {
     flexDirection: 'row',
@@ -664,14 +726,6 @@ const styles = StyleSheet.create({
     marginVertical: 10,
     alignSelf: 'center',
   },
-  replyInput: {
-    flex: 1,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    marginRight: 10,
-  },
   replyButton: {
     backgroundColor: '#2196f3',
     paddingVertical: 10,
@@ -698,7 +752,7 @@ const styles = StyleSheet.create({
     elevation: 5,
     justifyContent: 'center',
     alignItems: 'center',
-    alignSelf: 'center'
+    alignSelf: 'center',
   },
   headerTitle: {
     fontSize: 20,
