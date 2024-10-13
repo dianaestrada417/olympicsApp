@@ -1,6 +1,6 @@
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View, Dimensions, ActivityIndicator, TextInput, Button, FlatList, TouchableOpacity } from 'react-native';
+import { ScrollView, StyleSheet, Text, View, Dimensions, ActivityIndicator, TextInput, Button, FlatList, TouchableOpacity } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import Slider from '@react-native-community/slider';
 import * as Location from 'expo-location';
@@ -16,15 +16,151 @@ const Drawer = createDrawerNavigator();
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 function HomeScreen() {
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [sports, setSports] = useState([]);
+  const [userType, setUserType] = useState(''); // 'New to LA' or 'LA Native'
+  const [country, setCountry] = useState(''); // Country if not LA native
+  const [showForm, setShowForm] = useState(false);
+
+  const scrollViewRef = useRef(null);
+
+  const handleScrollToForm = () => {
+    setShowForm(true);
+    setTimeout(() => {
+      scrollViewRef.current.scrollTo({ 
+        y: Dimensions.get('window').height, 
+        animated: true 
+      });
+    }, 100); // 100ms delay
+  };
+
+  const availableSports = [
+    "AQUATICS", "ARCHERY", "ATHLETICS", "BADMINTON", "BASEBALL",
+    "BASKETBALL", "CANOE", "CRICKET", "CYCLING", "EQUESTRIAN",
+    "FENCING", "FLAG FOOTBALL", "FOOTBALL (SOCCER)", "GOLF", "GYMNASTICS",
+    "HANDBALL", "HOCKEY", "JUDO", "LACROSSE", "MODERN PENTATHLON",
+    "ROWING", "RUGBY", "SAILING", "SHOOTING", "SKATEBOARDING",
+    "SOFTBALL", "SPORT CLIMBING", "SQUASH", "SURFING", "TABLE TENNIS",
+    "TAEKWONDO", "TENNIS", "TRIATHLON", "VOLLEYBALL", "WEIGHTLIFTING",
+    "WRESTLING"
+  ];
+
+  const handleSportSelect = (sport) => {
+    if (sports.includes(sport)) {
+      setSports(sports.filter(item => item !== sport)); // Deselect
+    } else {
+      setSports([...sports, sport]); // Select
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!firstName || !lastName || !userType) {
+      alert('Please fill in all fields.');
+      return;
+    }
+    
+    const userData = {
+      firstName,
+      lastName,
+      sports,
+      userType,
+      country: userType === 'New to LA' ? country : null,
+    };
+
+    console.log("User Data Submitted:", userData);
+    try {
+      const docRef = await addDoc(collection(db, 'users'), userData);
+      console.log("Document written with ID: ", docRef.id);
+        
+      // Clear the form
+      setFirstName('');
+      setLastName('');
+      setSports([]);
+      setUserType('');
+      setCountry('');
+      setShowForm(false);
+      
+      // You might want to navigate to another screen or update the UI here
+    } catch (error) {
+      console.error("Error adding document: ", error);
+      alert('There was an error submitting your information. Please try again.');
+    }
+  };
+
   return (
-    <View style={styles.container}>
-      <Text>Home Page - LA28 Olympics!</Text>
+    <ScrollView ref={scrollViewRef} contentContainerStyle={styles.scrollViewContainer}>
+      <Text style={styles.title}>Navigating the LA28 Olympics!</Text>
       <Image
         style={styles.gif}
         source={require('./assets/olympics.gif')}
         contentFit="contain"
       />
-    </View>
+
+      <TouchableOpacity style={styles.getStartedButton} onPress={handleScrollToForm}>
+        <Text style={styles.getStartedButtonText}>Get Started</Text>
+      </TouchableOpacity>
+
+      {showForm && (
+        <View style={styles.formContainer}>
+          <TextInput
+            style={styles.input}
+            placeholder="First Name"
+            value={firstName}
+            onChangeText={setFirstName}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Last Name"
+            value={lastName}
+            onChangeText={setLastName}
+          />
+
+          <View style={styles.userTypeContainer}>
+            <TouchableOpacity
+              style={[styles.userTypeButton, userType === 'New to LA' && styles.selectedButton]}
+              onPress={() => setUserType('New to LA')}
+            >
+              <Text style={styles.buttonText}>New to LA</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.userTypeButton, userType === 'LA Native' && styles.selectedButton]}
+              onPress={() => setUserType('LA Native')}
+            >
+              <Text style={styles.buttonText}>LA Native</Text>
+            </TouchableOpacity>
+          </View>
+
+          {userType === 'New to LA' && (
+            <TextInput
+              style={styles.input}
+              placeholder="Country"
+              value={country}
+              onChangeText={setCountry}
+            />
+          )}
+
+          <Text style={styles.sportsTitle}>Select Sports:</Text>
+          {/* Add your sports selection UI here */}
+          <View style={styles.sportsContainer}>
+            {availableSports.map(sport => (
+              <TouchableOpacity
+                key={sport}
+                style={[styles.sportButton, sports.includes(sport) && styles.selectedSport]}
+                onPress={() => handleSportSelect(sport)}
+              >
+                <Text style={styles.sportButtonText}>{sport}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+
+          <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+            <Text style={styles.submitButtonText}>Submit</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </ScrollView>
   );
 }
 
@@ -396,7 +532,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   signupContainer: {
-    width: '80%',
+    width: '90%',
     padding: 20,
     backgroundColor: '#fff',
     borderRadius: 10,
@@ -419,7 +555,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   input: {
-    width: '75%',
+    width: '100%',
     padding: 10,
     marginVertical: 10,
     borderWidth: 1,
@@ -576,5 +712,77 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: '#333',
     textAlign: 'center',
+  },
+  sportsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+    marginVertical: 10,
+  },
+  sportButton: {
+    padding: 10,
+    margin: 5,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 5,
+  },
+  selectedSport: {
+    backgroundColor: '#97f0d8',
+  },
+  sportButtonText: {
+    color: '#000',
+  },  
+  scrollViewContainer: {
+    flexGrow: 1,
+    marginTop: '50%',
+    minHeight: Dimensions.get('window').height * 2.3,
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  item: {
+    marginBottom: 20,
+    padding: 20,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 10,
+    width: '100%', // or any other width you prefer
+  },
+  getStartedButton: {
+    backgroundColor: '#2196f3',
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    borderRadius: 5,
+    marginTop: 20,
+    alignSelf: 'center',
+  },
+  getStartedButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 18,
+  },
+  title: {
+    // fontSize: 24,
+    marginBottom: 20,
+  },
+  formContainer: {
+    width: '90%',
+    alignItems: 'center',
+    marginTop: Dimensions.get('window').height /2,
+    backgroundColor: '#ffffff', // Add a background color
+    padding: 20, // Add some padding
+    borderRadius: 10, // Round the corners
+    // Add shadow properties
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  sportsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 20,
+    marginBottom: 10,
   },
 });
