@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GEMINI_API_KEY } from '@env';
+import { useUserData } from '../App';
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
@@ -41,8 +42,6 @@ async function moderateContent(content) {
     return {
       isApproved: status.includes("APPROVED"),
       reason: reason
-      // isApproved: response.includes('APPROVED'),
-      // reason: response.split('\n')[1] || 'No reason provided',
     };
   } catch (error) {
     console.error('Content moderation error:', error);
@@ -81,30 +80,12 @@ const ForumHeader = React.memo(({ handleAddPost, post, setPost, inputRef, modera
 ));
 
 const ForumScreen = ({route}) => {
-    // const [userInfo, setUserInfo] = useState({
-    //   firstName: '',
-    //   lastName: '',
-    //   userType: '',
-    // });
-    const {userData} = route.params || {};
+    const {userData} = useUserData();
     const [post, setPost] = useState('');
     const [posts, setPosts] = useState([]);
     const [replies, setReplies] = useState({});
-    // const [isUserInfoSubmitted, setIsUserInfoSubmitted] = useState(false);
     const inputRef = useRef();
     const [moderationReason, setModerationReason] = useState('');
-  
-    // const handleUserTypeSelection = (type) => {
-    //   setUserInfo((prev) => ({ ...prev, userType: type }));
-    // };
-  
-    // const handleUserInfoSubmit = () => {
-    //   if (userInfo.firstName && userInfo.lastName && userInfo.userType) {
-    //     setIsUserInfoSubmitted(true);
-    //   } else {
-    //     alert('Enter all fields before submitting');
-    //   }
-    // };
   
     const fetchPosts = useCallback(async () => {
       try {
@@ -124,7 +105,6 @@ const ForumScreen = ({route}) => {
         try {
           const moderation = await moderateContent(post);
           if (!moderation.isApproved) {
-            // alert(`Your post was not approved. Reason: ${moderation.reason}`);
             setModerationReason(moderation.reason); // Set the moderation reason
             setTimeout(() => setModerationReason(''), 5000); // Clear after 5 seconds
             return;
@@ -139,7 +119,7 @@ const ForumScreen = ({route}) => {
             createdAt: new Date(),
           });
           setPost('');
-          fetchPosts(); // Fetch updated posts
+          fetchPosts();
         } catch (error) {
           console.error('Error adding post: ', error);
         }
@@ -193,58 +173,6 @@ const ForumScreen = ({route}) => {
     useEffect(() => {
       fetchPosts();
     }, [fetchPosts]);
-  
-    // if (!isUserInfoSubmitted) {
-    //   return (
-    //     <View style={styles.container}>
-    //       <View style={styles.signupContainer}>
-    //         <Text>Join the forum!</Text>
-    //         <TextInput
-    //           style={styles.input}
-    //           placeholder="First Name"
-    //           value={userInfo.firstName}
-    //           onChangeText={(text) =>
-    //             setUserInfo((prev) => ({ ...prev, firstName: text }))
-    //           }
-    //         />
-    //         <TextInput
-    //           style={styles.input}
-    //           placeholder="Last Name"
-    //           value={userInfo.lastName}
-    //           onChangeText={(text) =>
-    //             setUserInfo((prev) => ({ ...prev, lastName: text }))
-    //           }
-    //         />
-    //         <View style={styles.userTypeContainer}>
-    //           <TouchableOpacity
-    //             style={[
-    //               styles.userTypeButton,
-    //               userInfo.userType === 'New to LA' && styles.selectedButton,
-    //             ]}
-    //             onPress={() => handleUserTypeSelection('New to LA')}
-    //           >
-    //             <Text style={styles.buttonText}>New to LA</Text>
-    //           </TouchableOpacity>
-    //           <TouchableOpacity
-    //             style={[
-    //               styles.userTypeButton,
-    //               userInfo.userType === 'LA Native' && styles.selectedButton,
-    //             ]}
-    //             onPress={() => handleUserTypeSelection('LA Native')}
-    //           >
-    //             <Text style={styles.buttonText}>LA Native</Text>
-    //           </TouchableOpacity>
-    //         </View>
-    //         <TouchableOpacity
-    //           style={styles.submitButton}
-    //           onPress={handleUserInfoSubmit}
-    //         >
-    //           <Text style={styles.submitButtonText}>Submit</Text>
-    //         </TouchableOpacity>
-    //       </View>
-    //     </View>
-    //   );
-    // }
   
     return (
       <KeyboardAvoidingView
