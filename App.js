@@ -511,7 +511,8 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import HomeScreen from './screens/HomeScreen'; // New import
 import ForumScreen from './screens/ForumScreen';
-// import MapScreen from './screens/MapScreen'; // Assuming you also split this out
+import LeaderBoardScreen from './screens/LeaderBoardScreen';
+import ARScreen from './screens/ARScreen';
 
 const Drawer = createDrawerNavigator();
 
@@ -521,7 +522,8 @@ export default function App() {
       <Drawer.Navigator initialRouteName="Home">
         <Drawer.Screen name="Home" component={HomeScreen} />
         <Drawer.Screen name="Forum" component={ForumScreen} />
-        {/* <Drawer.Screen name="Interactive Map" component={MapScreen} /> */}
+        <Drawer.Screen name="AR" component={ARScreen} />
+        <Drawer.Screen name="LeaderBoard" component={LeaderBoardScreen} />
       </Drawer.Navigator>
     </NavigationContainer>
   );
