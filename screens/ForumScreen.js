@@ -37,7 +37,9 @@ async function moderateContent(content) {
     console.log("reSPonse: ", responseText)
 
     const [status, ...reasonParts] = responseText.split("\n");
+    console.log("STATUS: ", status)
     const reason = reasonParts.join(" ").trim() || "No reason provided";
+    
 
     return {
       isApproved: status.includes("APPROVED"),
@@ -354,7 +356,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   input: {
-    width: '100%',
+    width: '75%',
     padding: 10,
     marginVertical: 10,
     borderWidth: 1,

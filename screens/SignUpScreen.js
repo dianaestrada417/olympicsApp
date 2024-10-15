@@ -89,7 +89,7 @@ const SignUpScreen = ({ navigation, setFormSubmitted,setUserData }) => {
     return (
       <ImageBackground source={require('../assets/background.jpg')} style={styles.backgroundImage}>
         <ScrollView ref={scrollViewRef} contentContainerStyle={styles.scrollViewContainer}>
-          <Text style={styles.title}>Navigating the LA28 Olympics!</Text>
+          <Text style={styles.title}>Navigating the LA28 Olympics</Text>
           <Image style={styles.gif} source={require('../assets/olympics2.gif')} contentFit="contain" />
           <TouchableOpacity style={styles.getStartedButton} onPress={handleScrollToForm}>
             <Text style={styles.getStartedButtonText}>Get Started</Text>
@@ -412,9 +412,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
   title: {
-    // fontSize: 24,
+    fontSize: 20,
     marginBottom: 20,
-    color: '#fff'
+    color: '#fff',
+    fontWeight: 'bold'
   },
   formContainer: {
     width: '90%',
