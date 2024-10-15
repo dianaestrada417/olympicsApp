@@ -513,7 +513,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import SignUpScreen from './screens/SignUpScreen';
 import HomeScreen from './screens/HomeScreen';
 import ForumScreen from './screens/ForumScreen';
-import LeaderBoardScreen from './screens/LeaderBoardScreen';
+import ExplorationScreen from './screens/ExplorationScreen';
 import ARScreen from './screens/ARScreen';
 
 const Drawer = createDrawerNavigator();
