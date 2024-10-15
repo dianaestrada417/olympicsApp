@@ -526,7 +526,7 @@ const MainDrawer = () => (
     <Drawer.Screen name="Home" component={HomeScreen} />
     <Drawer.Screen name="Forum" component={ForumScreen} />
     <Drawer.Screen name="AR" component={ARScreen} />
-    <Drawer.Screen name="LeaderBoard" component={LeaderBoardScreen} />
+    <Drawer.Screen name="Exploration" component={ExplorationScreen} />
   </Drawer.Navigator>
 );
 
