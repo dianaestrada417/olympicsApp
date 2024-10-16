@@ -26,8 +26,8 @@ const LeaderBoard = () => {
       <FlatList
         data={users}
         keyExtractor={(item) => item.id} // Ensure each item has a unique key
-        renderItem={({ item }) => (
-          <View style={styles.row}>
+        renderItem={({ item, index }) => (
+          <View style={[styles.row, index % 2 === 0 ? styles.evenRow : styles.oddRow]}>
             <Text style={styles.text}>{item.firstName} {item.lastName}</Text>
             <Text style={styles.text}>{item.greenPoints} points</Text>
           </View>
@@ -52,6 +52,12 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 16,
+  },
+  evenRow: {
+    backgroundColor: '#e6f7ff', // Light blue background for even rows
+  },
+  oddRow: {
+    backgroundColor: '#fff', // White background for odd rows
   },
 });
 
