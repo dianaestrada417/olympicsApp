@@ -19,6 +19,7 @@ const MainDrawer = () => (
     <Drawer.Screen name="Forum" component={ForumScreen} />
     <Drawer.Screen name="AR" component={ARScreen} />
     <Drawer.Screen name="Exploration" component={ExplorationScreen} />
+    <Drawer.Screen name="Leaderboard" component={LeaderboardScreen} />
   </Drawer.Navigator>
 );
 
