@@ -3,7 +3,7 @@ import { Text, View, Dimensions, TextInput, TouchableOpacity, ScrollView, StyleS
 import { Image } from 'expo-image';
 import { ImageBackground } from 'react-native';
 import { collection, addDoc } from 'firebase/firestore';
-import { db } from '../firebase'; // Import db correctly
+import { db } from '../firebase';
 
 const SignUpScreen = ({ navigation, setFormSubmitted,setUserData }) => {
     const [firstName, setFirstName] = useState('');
@@ -63,6 +63,7 @@ const SignUpScreen = ({ navigation, setFormSubmitted,setUserData }) => {
         sports,
         userType,
         country: userType === 'New to LA' ? country : null,
+        greenPoints: 0,
       };
   
       try {

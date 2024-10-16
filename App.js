@@ -7,6 +7,7 @@ import HomeScreen from './screens/HomeScreen';
 import ForumScreen from './screens/ForumScreen';
 import ExplorationScreen from './screens/ExplorationScreen';
 import ARScreen from './screens/ARScreen';
+import LeaderBoard from './screens/LeaderBoardScreen';
 
 const Drawer = createDrawerNavigator();
 const Stack = createStackNavigator();
@@ -19,7 +20,7 @@ const MainDrawer = () => (
     <Drawer.Screen name="Forum" component={ForumScreen} />
     <Drawer.Screen name="AR" component={ARScreen} />
     <Drawer.Screen name="Exploration" component={ExplorationScreen} />
-    <Drawer.Screen name="Leaderboard" component={LeaderboardScreen} />
+    <Drawer.Screen name="Leaderboard" component={LeaderBoard} />
   </Drawer.Navigator>
 );
 

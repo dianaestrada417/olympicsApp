@@ -1,61 +1,35 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet } from 'react-native';
-import { collection, getDocs, orderBy, query } from 'firebase/firestore';
-import { db } from '../firebase'; // Ensure correct Firebase setup
+import { db } from '../firebase'; // Ensure this path is correct
+import { collection, onSnapshot } from 'firebase/firestore';
 
-const LeaderboardScreen = () => {
-  const [leaderboardData, setLeaderboardData] = useState([]);
-  const [loading, setLoading] = useState(true);
+const LeaderBoard = () => {
+  const [users, setUsers] = useState([]);
 
-  // Fetch leaderboard data from Firestore
   useEffect(() => {
-    const fetchLeaderboard = async () => {
-      try {
-        // Query to fetch users sorted by points in descending order
-        const leaderboardQuery = query(
-          collection(db, 'users'), 
-          orderBy('points', 'desc')
-        );
+    const unsubscribe = onSnapshot(collection(db, 'users'), (snapshot) => { // Use collection function
+      const userList = snapshot.docs.map((doc) => ({
+        ...doc.data(),
+        id: doc.id, // Include doc ID if needed
+      }));
+      // Sort users by greenPoints in descending order
+      const sortedUsers = userList.sort((a, b) => b.greenPoints - a.greenPoints);
+      setUsers(sortedUsers);
+    });
 
-        const leaderboardSnapshot = await getDocs(leaderboardQuery);
-        const leaderboardList = leaderboardSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        setLeaderboardData(leaderboardList);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error fetching leaderboard data: ", error);
-        setLoading(false);
-      }
-    };
-
-    fetchLeaderboard();
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
   }, []);
-
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.loadingText}>Loading leaderboard...</Text>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Leaderboard</Text>
-      
       <FlatList
-        data={leaderboardData}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item, index }) => (
-          <View style={styles.itemContainer}>
-            <Text style={styles.rankText}>{index + 1}.</Text>
-            <Text style={styles.nameText}>
-              {item.firstName} {item.lastName}
-            </Text>
-            <Text style={styles.pointsText}>{item.points} points</Text>
+        data={users}
+        keyExtractor={(item) => item.id} // Ensure each item has a unique key
+        renderItem={({ item }) => (
+          <View style={styles.row}>
+            <Text style={styles.text}>{item.firstName} {item.lastName}</Text>
+            <Text style={styles.text}>{item.greenPoints} points</Text>
           </View>
         )}
       />
@@ -66,49 +40,19 @@ const LeaderboardScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     padding: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#fff',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  loadingText: {
-    fontSize: 18,
-    fontStyle: 'italic',
-  },
-  itemContainer: {
+  row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
     paddingVertical: 10,
-    paddingHorizontal: 20,
-    backgroundColor: '#fff',
-    borderRadius: 5,
-    marginVertical: 5,
-    width: '100%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    elevation: 3,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ccc',
   },
-  rankText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginRight: 10,
-  },
-  nameText: {
+  text: {
     fontSize: 16,
-    flex: 1,
-  },
-  pointsText: {
-    fontSize: 16,
-    fontWeight: 'bold',
   },
 });
 
-export default LeaderboardScreen;
+export default LeaderBoard;
