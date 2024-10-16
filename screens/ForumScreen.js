@@ -25,21 +25,22 @@ async function moderateContent(content) {
       1. Inappropriate language
       2. Harmful content
       3. Spam
+      4. Other negativity or hate comments
       
       Content to analyze: "${content}"
       
-      Respond with only "APPROVED" or "REJECTED" followed by a brief reason.
-      This should be the format of the response: "REJECTED - Inappropriate language"
+      Respond with only "APPROVED" or "REJECTED" followed by a brief reason to the user.
+      This should be the format of the response: "REJECTED - No inappropriate language is allowed"
     `;
 
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
     console.log("reSPonse: ", responseText)
 
-    const [status, ...reasonParts] = responseText.split("\n");
+    const [status, ...reasonParts] = responseText.split("-");
     console.log("STATUS: ", status)
     const reason = reasonParts.join(" ").trim() || "No reason provided";
-    
+    console.log("REASON", reason)
 
     return {
       isApproved: status.includes("APPROVED"),
@@ -74,10 +75,10 @@ const ForumHeader = React.memo(({ handleAddPost, post, setPost, inputRef, modera
         onChangeText={setPost}
         multiline={true}
       />
-      {moderationReason ? (
+    </View>
+    {moderationReason ? (
         <Text style={styles.moderationText}>{moderationReason}</Text>
       ) : null}
-    </View>
   </>
 ));
 
@@ -299,8 +300,10 @@ const styles = StyleSheet.create({
   },
   moderationText: {
     color: 'red',
-    marginTop: 5,
-    textAlign: 'center',
+    textAlign: 'left',
+    marginLeft: 20,
+    marginTop: -8,
+    marginBottom: 20,
   },
   containerOuter: {
     flex: 1,
