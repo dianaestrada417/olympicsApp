@@ -57,6 +57,7 @@ const ExplorationScreen = ({ navigation }) => {
     { id: 'culture_visit', name: 'Visit one of our recommended culture sites' },
     { id: 'venue_visit', name: 'Explore an Olympic venue with AR' },
     { id: 'support_small_bussiness', name: 'Support one of our recommended small businesses' },
+    { id: 'donate', name: 'Donate to a Los Angeles charity' }
   ];
 
   const completeChallengeWithPhoto = async (challenge) => {
